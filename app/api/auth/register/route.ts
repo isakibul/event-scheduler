@@ -15,6 +15,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: "Missing required field" }, { status: 400 });
     }
 
+    /*
+     * validate password complexity
+     */
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+        return NextResponse.json(
+            { message: "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character." },
+            { status: 400 }
+        )
+    }
+
     try {
         /*
          * check if a user already exists with the same email 
@@ -37,7 +48,7 @@ export async function POST(req: NextRequest) {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         /*
-         * insert the new user into the database 
+         * insert the new user into the database
          */
         await dbPool.query(
             "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
