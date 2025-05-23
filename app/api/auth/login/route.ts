@@ -1,19 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbPool from "../../../../lib/db";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_EXPIRES_IN = "1h";
 
 export async function POST(req: NextRequest) {
+    /*
+     * parse request body
+     */
     const { email, password } = await req.json();
 
+    /*
+     * validate required fields  
+     */
     if (!email || !password) {
-        return NextResponse.json({ message: "Missing email or password" }, { status: 400 });
+        return NextResponse.json({ message: "Missing email/username or password" }, { status: 400 });
     }
 
     try {
-        const [userRows]: any = await dbPool.query("SELECT * FROM users WHERE email = ?", [email]);
+        /*
+         * find user by email or username
+         */
+        const [userRows]: any = await dbPool.query(
+            "SELECT * FROM users WHERE email = ? OR username = ?",
+            [email, email]
+        );
 
+        /*
+         * if user not found, return unauthorized
+         */
         if (userRows.length === 0) {
-            return NextResponse.json({ message: "Invalid email or password" }, { status: 401 });
+            return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
         }
 
         const user = userRows[0];
@@ -27,7 +46,7 @@ export async function POST(req: NextRequest) {
         if (user.is_locked && lockedUntil && lockedUntil > now) {
             const waitMinutes = Math.ceil((lockedUntil.getTime() - now.getTime()) / 60000);
             return NextResponse.json({
-                message: `To many attempt. Try again in ${waitMinutes} minute(s).`
+                message: `Too many attempts. Try again in ${waitMinutes} minute(s).`
             }, { status: 403 });
         }
 
@@ -58,7 +77,7 @@ export async function POST(req: NextRequest) {
                 [attempts, now, locked, lockUntil, user.id]
             );
 
-            return NextResponse.json({ message: "Invalid email or password" }, { status: 401 });
+            return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
         }
 
         /*
@@ -69,16 +88,34 @@ export async function POST(req: NextRequest) {
             [user.id]
         );
 
+        /*
+         * generate JWT token 
+         */
+        const token = jwt.sign({
+            id: user.id,
+            name: user.name,
+            username: user.username,
+            email: user.email
+        }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+        /*
+         * return response with token and user info
+         */
         return NextResponse.json({
             message: "Login successful",
+            token,
             user: {
                 id: user.id,
                 name: user.name,
+                username: user.username,
                 email: user.email
             }
         }, { status: 200 });
 
     } catch (error) {
+        /*
+         * log the error and return a generic server error message
+         */
         console.error("Login error:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }

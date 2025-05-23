@@ -6,12 +6,12 @@ export async function POST(req: NextRequest) {
     /*
      * parse request body
      */
-    const { name, email, password } = await req.json();
+    const { name, username, email, password } = await req.json();
 
     /*
      * validate required fields  
      */
-    if (!name || !email || !password) {
+    if (!name || !username || !email || !password) {
         return NextResponse.json({ message: "Missing required field" }, { status: 400 });
     }
 
@@ -23,23 +23,30 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
             { message: "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character." },
             { status: 400 }
-        )
+        );
     }
 
     try {
         /*
-         * check if a user already exists with the same email 
+         * check if a user already exists with the same email or username 
          */
-        const [existingUser]: any = await dbPool.query(
+        const [existingEmail]: any = await dbPool.query(
             "SELECT id FROM users WHERE email = ?",
             [email]
+        );
+        const [existingUsername]: any = await dbPool.query(
+            "SELECT id FROM users WHERE username = ?",
+            [username]
         );
 
         /*
          * if user exists, return conflict error 
          */
-        if (existingUser.length > 0) {
-            return NextResponse.json({ message: "User already exists" }, { status: 409 });
+        if (existingEmail.length > 0) {
+            return NextResponse.json({ message: "User with this email already exists" }, { status: 409 });
+        }
+        if (existingUsername.length > 0) {
+            return NextResponse.json({ message: "User with this username already exists" }, { status: 409 });
         }
 
         /*
@@ -51,9 +58,10 @@ export async function POST(req: NextRequest) {
          * insert the new user into the database
          */
         await dbPool.query(
-            "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-            [name, email, hashedPassword]
+            "INSERT INTO users (name, username, email, password) VALUES (?, ?, ?, ?)",
+            [name, username, email, hashedPassword]
         );
+
         return NextResponse.json({ message: "User created successfully" }, { status: 201 });
 
     } catch (error) {
