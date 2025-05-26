@@ -1,0 +1,8 @@
+#include<stdio.h>
+/**
+*printing hello
+*/
+int main(){
+    // Printing hello
+    printf("Hello");
+}
