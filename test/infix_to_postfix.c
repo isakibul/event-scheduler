@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 
@@ -25,14 +24,10 @@ int is_empty() {
 }
 
 int precedence(char op) {
-    switch(op) {
-        case '^': return 3;
-        case '*':
-        case '/': return 2;
-        case '+':
-        case '-': return 1;
-        default:  return 0;
-    }
+    if (op == '^') return 3;
+    if (op == '*' || op == '/') return 2;
+    if (op == '+' || op == '-') return 1;
+    return 0;
 }
 
 int is_right_associative(char op) {
@@ -47,7 +42,7 @@ void infix_to_postfix(const char* infix, char* postfix) {
     int i, k = 0;
     char ch;
 
-    for (i = 0; infix[i]; i++) {
+    for (i = 0; infix[i] != '\0'; i++) {
         ch = infix[i];
 
         if (isspace(ch)) continue;
@@ -62,8 +57,7 @@ void infix_to_postfix(const char* infix, char* postfix) {
             while (!is_empty() && peek() != '(') {
                 postfix[k++] = pop();
             }
-            if (!is_empty() && peek() == '(')
-                pop(); // remove '('
+            if (!is_empty()) pop();
         }
         else if (is_operator(ch)) {
             while (!is_empty() && peek() != '(' &&
@@ -75,8 +69,9 @@ void infix_to_postfix(const char* infix, char* postfix) {
         }
     }
 
-    while (!is_empty())
+    while (!is_empty()) {
         postfix[k++] = pop();
+    }
 
     postfix[k] = '\0';
 }
